@@ -1,136 +1,116 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>Choisis ton carnet :)</title>
-<style>
-  body {
-    font-family: Helvetica, sans-serif;
-    margin: 2rem;
-    background-color: #fff;
-    color: #000;
-    text-align: center;
-  }
-  h1 { margin-bottom: 10px; }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(20, 40px);
-    grid-gap: 4px;
-    justify-content: center;
-    margin-top: 20px;
-  }
-  .edition {
-    width: 40px;
-    height: 40px;
-    background-color: black;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 12px;
-    border: 1px solid #333;
-    user-select: none;
-    transition: all 0.2s;
-  }
-  .edition.sold {
-    background-color: #fff;
-    color: rgba(0,0,0,0.0);
-    border: none;
-    cursor: not-allowed;
-  }
-  .edition:hover:not(.sold) { transform: scale(1.1); }
-
-  #selectedEdition { margin-top: 20px; font-size: 18px; }
-  #payButton {
-    margin-top: 10px;
-    padding: 12px 30px;
-    font-size: 18px;
-    background-color: #dd00ff;
-    color: white;
-    border: none;
-    cursor: pointer;
-    font-weight: bold;
-    transition: all 0.2s;
-    display: none;
-  }
-  #payButton:hover:not(:disabled) { background-color: #e600e6; }
-  #payButton:disabled { background-color: #999; cursor: not-allowed; }
-</style>
+  <meta charset="UTF-8" />
+  <title>Carnets</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .item {
+      padding: 15px;
+      text-align: center;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #f9f9f9;
+    }
+    .item.sold {
+      background: #ddd;
+      text-decoration: line-through;
+      cursor: not-allowed;
+    }
+    #selected-box {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+    #pay-btn {
+      margin-top: 15px;
+      padding: 10px 20px;
+      font-size: 16px;
+      display: none;
+      background: black;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
 </head>
+
 <body>
 
-<h1>Choisis ton carnet !</h1>
-<p>Clique sur un carré pour sélectionner une édition...</p>
+<h2>Choisissez une édition</h2>
 
-<div class="grid" id="grid"></div>
+<div id="grid" class="grid"></div>
 
-<div id="selectedEdition">Selected edition: <span id="editionNumber">Aucune</span></div>
-<button id="payButton">PAY!</button>
+<div id="selected-box"></div>
+<button id="pay-btn">Payer</button>
 
 <script>
-  let selectedEdition = null;
+  // 1️⃣ Liste des liens Payrexx pour chaque édition
+  const links = {
+    1: "https://alexandreadnane.payrexx.com/fr/pay?pid=xxxx1",
+    2: "https://alexandreadnane.payrexx.com/fr/pay?pid=xxxx2",
+    3: "https://alexandreadnane.payrexx.com/fr/pay?pid=xxxx3",
+    // → Tu mettras les 200 ici
+  };
 
-  async function fetchSoldEditions() {
-    try {
-      const res = await fetch('/sold-editions');
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data.map(Number);
-    } catch (err) {
-      console.error('Erreur fetch sold-editions:', err);
-      return [];
-    }
+  let soldEditions = {};
+  let selected = null;
+
+  // 2️⃣ Charger sold.json
+  async function loadSold() {
+    const res = await fetch("sold.json?cache=" + Date.now());
+    soldEditions = await res.json();
   }
 
-  async function generateGrid() {
-    const sold = await fetchSoldEditions();
-    const grid = document.getElementById('grid');
-    grid.innerHTML = '';
+  // 3️⃣ Affichage de la grille
+  async function renderGrid() {
+    await loadSold();
+
+    const grid = document.getElementById("grid");
+    grid.innerHTML = "";
 
     for (let i = 1; i <= 200; i++) {
-      const div = document.createElement('div');
-      div.classList.add('edition');
+      const div = document.createElement("div");
+      div.className = "item";
       div.textContent = i;
-      div.dataset.edition = i;
 
-      if (sold.includes(i)) div.classList.add('sold');
-
-      div.addEventListener('click', () => {
-        if(div.classList.contains('sold')) return;
-
-        document.querySelectorAll('.edition:not(.sold)').forEach(e => e.style.borderColor = '#333');
-        div.style.borderColor = '#fff';
-
-        selectedEdition = i;
-        document.getElementById('editionNumber').textContent = i;
-        document.getElementById('payButton').style.display = 'inline-block';
-      });
+      if (soldEditions[i]) {
+        div.classList.add("sold");
+      } else {
+        div.onclick = () => selectEdition(i);
+      }
 
       grid.appendChild(div);
     }
   }
 
-  generateGrid();
+  // 4️⃣ Sélection d’un carnet
+  function selectEdition(num) {
+    selected = num;
+    document.getElementById("selected-box").textContent =
+      "Selected edition : " + num;
 
-  document.getElementById('payButton').addEventListener('click', async () => {
-    if (!selectedEdition) return;
+    document.getElementById("pay-btn").style.display = "inline-block";
+  }
 
-    try {
-      const response = await fetch('/api/payrexx-create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ edition: selectedEdition })
-      });
-
-      const data = await response.json();
-      if (!data.url) throw new Error(data.error || 'Lien Payrexx non généré');
-      window.location.href = data.url;
-    } catch (err) {
-      alert('Une erreur est survenue : ' + err.message);
-      console.error(err);
+  // 5️⃣ Bouton Payer
+  document.getElementById("pay-btn").onclick = () => {
+    if (!selected) return;
+    const url = links[selected];
+    if (!url) {
+      alert("Aucun lien Payrexx pour cette édition !");
+      return;
     }
-  });
+    window.location.href = url;
+  };
+
+  renderGrid();
 </script>
 
 </body>
