@@ -1,18 +1,19 @@
-require('dotenv').config();
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const fetch = require('node-fetch');
+import express from 'express';
+import fs from 'fs';
+import path from 'path';
+import fetch from 'node-fetch';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const app = express();
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.static(process.cwd()));
 
 const PORT = process.env.PORT || 5000;
 
 // --- Fichiers JSON
-const FILE_EDITIONS = path.join(__dirname, 'sold_editions.json');
-const FILE_ORDERS = path.join(__dirname, 'orders.json');
+const FILE_EDITIONS = path.join(process.cwd(), 'sold_editions.json');
+const FILE_ORDERS = path.join(process.cwd(), 'orders.json');
 
 function loadSold() {
   if (!fs.existsSync(FILE_EDITIONS)) return [];
@@ -32,9 +33,9 @@ function saveOrders(orders) {
 }
 
 // --- Pages statiques
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.get('/success', (req, res) => res.sendFile(path.join(__dirname, 'success.html')));
-app.get('/cancel', (req, res) => res.sendFile(path.join(__dirname, 'cancel.html')));
+app.get('/', (req, res) => res.sendFile(path.join(process.cwd(), 'index.html')));
+app.get('/success', (req, res) => res.sendFile(path.join(process.cwd(), 'success.html')));
+app.get('/cancel', (req, res) => res.sendFile(path.join(process.cwd(), 'cancel.html')));
 
 // --- API pour éditions vendues
 app.get('/api/sold-editions', (req, res) => res.json(loadSold()));
@@ -78,7 +79,9 @@ app.post('/api/payrexx', async (req, res) => {
       })
     });
 
-    const text = await response.text(); // debug si Payrexx renvoie HTML
+    const text = await response.text();
+    console.log('Payrexx response text:', text);
+
     let data;
     try { data = JSON.parse(text); } 
     catch { return res.status(500).json({ error: 'Réponse Payrexx invalide', details: text }); }
@@ -88,10 +91,9 @@ app.post('/api/payrexx', async (req, res) => {
     res.status(200).json({ url: data.data.link });
 
   } catch (err) {
-    console.error('Payrexx error:', err);
+    console.error('Erreur API Payrexx:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// --- Lancer serveur
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
