@@ -1,23 +1,24 @@
 import fs from 'fs';
 import path from 'path';
 
-export default function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end();
+export default async function handler(req, res) {
+  try {
+    const data = req.body;
 
-  const { custom_fields } = req.body;
-  if (!custom_fields || !custom_fields.edition) return res.status(400).end();
+    const filePath = path.join(process.cwd(), 'public', 'sold_editions.json');
+    let sold = [];
+    if (fs.existsSync(filePath)) sold = JSON.parse(fs.readFileSync(filePath));
 
-  const soldFile = path.join(process.cwd(), 'sold_editions.json');
-  let sold = [];
-  if (fs.existsSync(soldFile)) {
-    try { sold = JSON.parse(fs.readFileSync(soldFile)); } catch {}
+    if (data.custom_fields && data.custom_fields.edition) {
+      const edition = Number(data.custom_fields.edition);
+      if (!sold.includes(edition)) sold.push(edition);
+    }
+
+    fs.writeFileSync(filePath, JSON.stringify(sold, null, 2));
+    console.log('Webhook reçu:', data);
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Erreur');
   }
-
-  const edition = Number(custom_fields.edition);
-  if (!sold.includes(edition)) {
-    sold.push(edition);
-    fs.writeFileSync(soldFile, JSON.stringify(sold, null, 2));
-  }
-
-  res.status(200).end();
 }
