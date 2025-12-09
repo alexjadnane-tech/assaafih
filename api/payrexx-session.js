@@ -12,7 +12,7 @@ export default async function handler(req, res) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         api_key: process.env.PAYREXX_API_KEY,
-        amount: 700, // montant par défaut
+        amount: 700,
         currency: 'CHF',
         description: `Carnet édition #${edition}`,
         purpose: `Edition ${edition}`,
