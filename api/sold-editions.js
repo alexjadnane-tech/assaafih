@@ -4,18 +4,24 @@ import path from 'path';
 export default function handler(req, res) {
   const soldFile = path.join(process.cwd(), 'sold_editions.json');
 
-  // --- Charger les éditions déjà vendues
+  // Charger les éditions vendues
   let sold = [];
   if (fs.existsSync(soldFile)) {
-    try { sold = JSON.parse(fs.readFileSync(soldFile)); } catch {}
+    try {
+      sold = JSON.parse(fs.readFileSync(soldFile));
+    } catch {
+      sold = [];
+    }
   }
 
-  // --- Ajouter manuellement l'édition 12
-  if (!sold.includes(1)) sold.push(1);
+  // Ajouter manuellement l’édition 12
+  if (!sold.includes(12)) {
+    sold.push(12);
+  }
 
-  // --- Sauvegarder le fichier
+  // Sauvegarder
   fs.writeFileSync(soldFile, JSON.stringify(sold, null, 2));
 
-  // --- Retourner la liste des éditions vendues
+  // Retourner les sold
   res.status(200).json(sold);
 }
