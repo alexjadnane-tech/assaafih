@@ -2,116 +2,122 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Carnets</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carnets – Choix</title>
   <style>
-    body { font-family: Arial; padding: 20px; }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(10, 1fr);
-      gap: 10px;
-      margin-bottom: 20px;
+    body {
+      font-family: Arial, sans-serif;
+      padding: 40px;
+      text-align: center;
     }
+
+    #grid {
+      margin-top: 30px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 10px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
     .item {
       padding: 15px;
-      text-align: center;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+      background: #eee;
       cursor: pointer;
-      background: #f9f9f9;
-    }
-    .item.sold {
-      background: #ddd;
-      text-decoration: line-through;
-      cursor: not-allowed;
-    }
-    #selected-box {
-      margin-top: 20px;
+      border-radius: 5px;
+      transition: 0.2s;
       font-size: 18px;
+      font-weight: bold;
     }
-    #pay-btn {
+
+    .item:hover {
+      background: #ddd;
+    }
+
+    .sold {
+      background: #999;
+      cursor: not-allowed !important;
+      text-decoration: line-through;
+      color: white;
+    }
+
+    #selected {
+      margin-top: 20px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    #payBtn {
       margin-top: 15px;
-      padding: 10px 20px;
-      font-size: 16px;
-      display: none;
+      padding: 12px 20px;
+      font-size: 18px;
       background: black;
       color: white;
-      border-radius: 4px;
+      border: none;
+      border-radius: 5px;
       cursor: pointer;
+      display: none;
+    }
+
+    #payBtn:hover {
+      opacity: 0.8;
     }
   </style>
 </head>
-
 <body>
+  <h1>Choisissez votre carnet</h1>
+  <div id="grid"></div>
 
-<h2>Choisissez une édition</h2>
+  <div id="selected"></div>
+  <button id="payBtn">Payer</button>
 
-<div id="grid" class="grid"></div>
+  <script>
+    let selectedEdition = null;
+    let payLinks = {};
+    let sold = [];
 
-<div id="selected-box"></div>
-<button id="pay-btn">Payer</button>
+    async function init() {
+      const linksRes = await fetch("/links.json");
+      payLinks = await linksRes.json();
 
-<script>
-  // 1️⃣ Liste des liens Payrexx pour chaque édition
-  const links = {
-    1: "https://alexandreadnane.payrexx.com/fr/pay?pid=dee0547b",
-    2: "https://alexandreadnane.payrexx.com/fr/pay?pid=f559bd7a",
-    3: "https://alexandreadnane.payrexx.com/fr/pay?pid=xxxx3",
-    // → Tu mettras les 200 ici
-  };
+      const soldRes = await fetch("/sold.json");
+      sold = await soldRes.json();
 
-  let soldEditions = {};
-  let selected = null;
-
-  // 2️⃣ Charger sold.json
-  async function loadSold() {
-    const res = await fetch("sold.json?cache=" + Date.now());
-    soldEditions = await res.json();
-  }
-
-  // 3️⃣ Affichage de la grille
-  async function renderGrid() {
-    await loadSold();
-
-    const grid = document.getElementById("grid");
-    grid.innerHTML = "";
-
-    for (let i = 1; i <= 200; i++) {
-      const div = document.createElement("div");
-      div.className = "item";
-      div.textContent = i;
-
-      if (soldEditions[i]) {
-        div.classList.add("sold");
-      } else {
-        div.onclick = () => selectEdition(i);
-      }
-
-      grid.appendChild(div);
+      buildGrid();
     }
-  }
 
-  // 4️⃣ Sélection d’un carnet
-  function selectEdition(num) {
-    selected = num;
-    document.getElementById("selected-box").textContent =
-      "Selected edition : " + num;
+    function buildGrid() {
+      const grid = document.getElementById("grid");
+      grid.innerHTML = "";
 
-    document.getElementById("pay-btn").style.display = "inline-block";
-  }
+      Object.entries(payLinks).forEach(([edition, link]) => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.textContent = edition;
 
-  // 5️⃣ Bouton Payer
-  document.getElementById("pay-btn").onclick = () => {
-    if (!selected) return;
-    const url = links[selected];
-    if (!url) {
-      alert("Aucun lien Payrexx pour cette édition !");
-      return;
+        const isSold = sold.includes(Number(edition));
+        if (isSold) div.classList.add("sold");
+
+        div.onclick = () => {
+          if (isSold) return;
+
+          selectedEdition = edition;
+          document.getElementById("selected").textContent =
+            "Édition sélectionnée : " + edition;
+
+          document.getElementById("payBtn").style.display = "block";
+
+          document.getElementById("payBtn").onclick = () => {
+            window.location.href = link;
+          };
+        };
+
+        grid.appendChild(div);
+      });
     }
-    window.location.href = url;
-  };
 
-  renderGrid();
-</script>
-
+    init();
+  </script>
 </body>
 </html>
