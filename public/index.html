@@ -26,6 +26,7 @@ body { font-family: Helvetica, sans-serif; margin:2rem; text-align:center;}
 <script>
 let selectedEdition = null;
 
+// --- Récupère les éditions vendues (webhook + manuel)
 async function fetchSold() {
   try {
     const res = await fetch('/api/sold-editions');
@@ -34,6 +35,7 @@ async function fetchSold() {
   } catch { return []; }
 }
 
+// --- Génère la grille
 async function generateGrid() {
   const sold = await fetchSold();
   const grid = document.getElementById('grid');
@@ -57,23 +59,16 @@ async function generateGrid() {
   }
 }
 
+// --- Initialisation et auto-refresh
 generateGrid();
 setInterval(generateGrid,10000);
 
-document.getElementById('payButton').addEventListener('click',async()=>{
+// --- Bouton PAY! ouvre directement le VPOS
+document.getElementById('payButton').addEventListener('click',()=>{
   if(!selectedEdition) return;
-  const choice=prompt("Tape 'stripe' ou 'twint' pour choisir le paiement :");
-  if(!choice) return;
-  try{
-    const res = await fetch('/api/payrexx-session',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({edition:selectedEdition,method:choice.toLowerCase()})
-    });
-    const data = await res.json();
-    if(data.url) window.open(data.url,'_blank');
-    else alert('Erreur création paiement');
-  }catch{alert('Erreur réseau');}
+  const baseVPOS = 'https://alexandreadnane.payrexx.com/fr/vpos$';
+  // on peut ajouter l'édition dans la description via query param si besoin
+  window.open(`${baseVPOS}?description=Carnet+édition+${selectedEdition}`,'_blank');
 });
 </script>
 </body>
