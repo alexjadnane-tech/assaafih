@@ -69,75 +69,59 @@
 <button id="payButton">PAY!</button>
 
 <script>
-let selectedEdition = null;
+  const editions = 200;
+  let selectedEdition = null;
 
-// Fetch les éditions déjà vendues
-async function fetchSoldEditions() {
-  try {
-    const res = await fetch('/api/sold-editions');
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.map(Number);
-  } catch (err) {
-    console.error('Erreur fetch sold-editions:', err);
-    return [];
+  async function fetchSold() {
+    try {
+      const res = await fetch('/sold-editions');
+      return res.ok ? await res.json() : [];
+    } catch {
+      return [];
+    }
   }
-}
 
-// Générer la grille
-async function generateGrid() {
-  const sold = await fetchSoldEditions();
-  const grid = document.getElementById('grid');
-  grid.innerHTML = ''; // reset
+  function generateGrid(soldList = []) {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = ''; // reset
 
-  for (let i = 1; i <= 200; i++) {
-    const div = document.createElement('div');
-    div.classList.add('edition');
-    div.textContent = i;
-    div.dataset.edition = i;
+    for (let i = 1; i <= editions; i++) {
+      const div = document.createElement('div');
+      div.classList.add('edition');
+      div.textContent = i;
+      div.dataset.edition = i;
 
-    if (sold.includes(i)) div.classList.add('sold');
+      if (soldList.includes(i)) div.classList.add('sold');
 
-    div.addEventListener('click', () => {
-      if(div.classList.contains('sold')) return;
+      div.addEventListener('click', () => {
+        if (div.classList.contains('sold')) return;
 
-      // Désélectionner les autres
-      document.querySelectorAll('.edition:not(.sold)').forEach(e => e.style.borderColor = '#333');
+        // Désélectionner les autres
+        document.querySelectorAll('.edition:not(.sold)').forEach(e => e.style.borderColor = '#333');
 
-      // Sélection
-      div.style.borderColor = '#fff';
-      selectedEdition = i;
-      document.getElementById('editionNumber').textContent = i;
-      document.getElementById('payButton').style.display = 'inline-block';
-    });
+        // Sélection
+        div.style.borderColor = '#fff';
+        selectedEdition = i;
+        document.getElementById('editionNumber').textContent = i;
+        document.getElementById('payButton').style.display = 'inline-block';
+      });
 
-    grid.appendChild(div);
+      grid.appendChild(div);
+    }
   }
-}
 
-// Génération initiale
-generateGrid();
+  // Bouton PAY! redirige vers Payrexx
+  document.getElementById('payButton').addEventListener('click', () => {
+    if (!selectedEdition) return;
 
-// Paiement
-document.getElementById('payButton').addEventListener('click', async () => {
-  if (!selectedEdition) return;
+    // Remplace le PID par celui de ton produit
+    const pid = 'c2cb9dd3';
+    const url = `https://alexandreadnane.payrexx.com/fr/pay?pid=${pid}&edition=${selectedEdition}`;
+    window.location.href = url;
+  });
 
-  try {
-    const res = await fetch('/api/payrexx', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ edition: selectedEdition })
-    });
-
-    const data = await res.json();
-    if (data.error) return alert(data.error);
-
-    // Rediriger vers Payrexx
-    window.location.href = data.url;
-  } catch (err) {
-    alert('Une erreur est survenue : ' + err.message);
-  }
-});
+  // Génération initiale de la grille
+  fetchSold().then(soldList => generateGrid(soldList));
 </script>
 
 </body>
