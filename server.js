@@ -2,8 +2,6 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
-import dotenv from 'dotenv';
-dotenv.config();
 
 const app = express();
 app.use(express.json());
@@ -17,83 +15,59 @@ const FILE_ORDERS = path.join(process.cwd(), 'orders.json');
 
 function loadSold() {
   if (!fs.existsSync(FILE_EDITIONS)) return [];
-  const data = fs.readFileSync(FILE_EDITIONS);
-  try { return JSON.parse(data); } catch { return []; }
+  try { return JSON.parse(fs.readFileSync(FILE_EDITIONS)); } catch { return []; }
 }
 function saveSold(editions) {
   fs.writeFileSync(FILE_EDITIONS, JSON.stringify(editions, null, 2));
 }
 function loadOrders() {
   if (!fs.existsSync(FILE_ORDERS)) return [];
-  const data = fs.readFileSync(FILE_ORDERS);
-  try { return JSON.parse(data); } catch { return []; }
+  try { return JSON.parse(fs.readFileSync(FILE_ORDERS)); } catch { return []; }
 }
 function saveOrders(orders) {
   fs.writeFileSync(FILE_ORDERS, JSON.stringify(orders, null, 2));
 }
 
-// --- Pages statiques
+// --- Pages
 app.get('/', (req, res) => res.sendFile(path.join(process.cwd(), 'index.html')));
-app.get('/success', (req, res) => res.sendFile(path.join(process.cwd(), 'success.html')));
-app.get('/cancel', (req, res) => res.sendFile(path.join(process.cwd(), 'cancel.html')));
+app.get('/success', (req, res) => res.send(`<h1>Payment successful</h1><p><a href="/">Back to shop</a></p>`));
+app.get('/cancel', (req, res) => res.send(`<h1>Payment canceled</h1><p><a href="/">Back to shop</a></p>`));
 
 // --- API pour éditions vendues
-app.get('/api/sold-editions', (req, res) => res.json(loadSold()));
-app.post('/api/mark-sold', (req, res) => {
-  const { edition } = req.body;
-  const soldOut = loadSold();
-  if (!soldOut.includes(Number(edition))) {
-    soldOut.push(Number(edition));
-    saveSold(soldOut);
-  }
-  res.json({ ok: true });
+app.get('/sold-editions', (req, res) => res.json(loadSold()));
+
+// --- API Payrexx (redirection)
+app.get('/api/payrexx', (req, res) => {
+  const { edition } = req.query;
+  if (!edition) return res.status(400).send('Edition manquante');
+
+  const baseUrl = process.env.BASE_URL;
+  const instance = process.env.PAYREXX_INSTANCE;
+  const apiKey = process.env.PAYREXX_API_KEY;
+
+  const payrexxUrl = `https://${instance}.payrexx.com/checkout?api_key=${apiKey}&amount=700&currency=CHF&description=Carnet+édition+${edition}&success_redirect_url=${baseUrl}/success.html&failed_redirect_url=${baseUrl}/cancel.html&custom_fields[edition]=${edition}`;
+
+  res.redirect(payrexxUrl);
 });
 
-// --- API Payrexx
-app.post('/api/payrexx', async (req, res) => {
-  const { edition } = req.body;
-  if (!edition) return res.status(400).json({ error: 'Edition manquante' });
+// --- API Payrexx Webhook
+app.post('/api/payrexx-webhook', (req, res) => {
+  const event = req.body;
+  console.log('--- PAYREXX WEBHOOK EVENT ---', JSON.stringify(event, null, 2));
 
-  try {
-    const baseUrl = process.env.BASE_URL || `http://localhost:${PORT}`;
+  if (event.status === 'paid' && event.custom_fields && event.custom_fields.edition) {
+    const edition = Number(event.custom_fields.edition);
+    let sold = loadSold();
 
-    const response = await fetch(`https://${process.env.PAYREXX_INSTANCE}.payrexx.com/api/v1.0/Payment`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: process.env.PAYREXX_API_KEY,
-        amount: 700,
-        currency: 'CHF',
-        description: `Carnet édition #${edition}`,
-        purpose: `Edition ${edition}`,
-        success_redirect_url: `${baseUrl}/success.html?edition=${edition}`,
-        failed_redirect_url: `${baseUrl}/cancel.html`,
-        fields: {
-          name: true,
-          email: true,
-          phone: true,
-          address: true,
-          country: true,
-          comment: true
-        }
-      })
-    });
-
-    const text = await response.text();
-    console.log('Payrexx response text:', text);
-
-    let data;
-    try { data = JSON.parse(text); } 
-    catch { return res.status(500).json({ error: 'Réponse Payrexx invalide', details: text }); }
-
-    if (!data.data || !data.data.link) return res.status(500).json({ error: 'Erreur Payrexx', details: data });
-
-    res.status(200).json({ url: data.data.link });
-
-  } catch (err) {
-    console.error('Erreur API Payrexx:', err);
-    res.status(500).json({ error: err.message });
+    if (!sold.includes(edition)) {
+      sold.push(edition);
+      saveSold(sold);
+      console.log(`✅ Edition ${edition} marquée comme vendue`);
+    }
   }
+
+  res.status(200).json({ received: true });
 });
 
+// --- Lancer serveur
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
