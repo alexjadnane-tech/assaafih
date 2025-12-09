@@ -26,7 +26,7 @@ body { font-family: Helvetica, sans-serif; margin:2rem; text-align:center;}
 <script>
 let selectedEdition = null;
 
-// --- Récupère les éditions vendues (webhook + manuel)
+// --- Récupère les éditions vendues
 async function fetchSold() {
   try {
     const res = await fetch('/api/sold-editions');
@@ -63,12 +63,12 @@ async function generateGrid() {
 generateGrid();
 setInterval(generateGrid,10000);
 
-// --- Bouton PAY! ouvre directement le VPOS
+// --- Bouton PAY! ouvre VPOS avec l'édition pré-remplie
 document.getElementById('payButton').addEventListener('click',()=>{
   if(!selectedEdition) return;
   const baseVPOS = 'https://alexandreadnane.payrexx.com/fr/vpos$';
-  // on peut ajouter l'édition dans la description via query param si besoin
-  window.open(`${baseVPOS}?description=Carnet+édition+${selectedEdition}`,'_blank');
+  const editionParam = encodeURIComponent(`Carnet édition ${selectedEdition}`);
+  window.open(`${baseVPOS}?description=${editionParam}`,'_blank');
 });
 </script>
 </body>
