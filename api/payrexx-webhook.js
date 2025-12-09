@@ -1,46 +1,39 @@
-import fs from 'fs';
-import path from 'path';
-
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-  const body = req.body;
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
   try {
-    // body contient toutes les infos de la commande Payrexx
-    const edition = body.custom_fields?.edition;
+    const { referenceId, status } = req.body;
+
+    // On vérifie que le paiement est réussi
+    if (status !== "confirmed" && status !== "authorized") {
+      return res.json({ ok: true });
+    }
+
+    // numéro d'édition = référence envoyée par ton bouton
+    const edition = Number(referenceId);
+
     if (!edition) {
-      console.error('Webhook: edition manquante', body);
-      return res.status(400).json({ error: 'Edition manquante' });
+      return res.status(400).json({ error: "No edition provided" });
     }
 
-    // --- Mettre à jour sold_editions.json
-    const soldFile = path.join(process.cwd(), 'sold_editions.json');
-    let sold = [];
-    if (fs.existsSync(soldFile)) sold = JSON.parse(fs.readFileSync(soldFile));
-    if (!sold.includes(Number(edition))) {
-      sold.push(Number(edition));
-      fs.writeFileSync(soldFile, JSON.stringify(sold, null, 2));
-    }
+    // Charger sold.json
+    const fs = require("fs");
+    const path = require("path");
 
-    // --- Sauvegarder la commande
-    const ordersFile = path.join(process.cwd(), 'orders.json');
-    let orders = [];
-    if (fs.existsSync(ordersFile)) orders = JSON.parse(fs.readFileSync(ordersFile));
-    orders.push({
-      edition: Number(edition),
-      customer_name: body.customer?.name || '',
-      customer_email: body.customer?.email || '',
-      address: body.customer?.address || '',
-      phone: body.customer?.phone || '',
-      created: new Date().toISOString(),
-    });
-    fs.writeFileSync(ordersFile, JSON.stringify(orders, null, 2));
+    const filePath = path.join(process.cwd(), "public", "sold.json");
+    const soldData = JSON.parse(fs.readFileSync(filePath, "utf8"));
 
-    // --- Répondre à Payrexx
-    res.status(200).json({ ok: true });
+    // Marquer comme vendu
+    soldData[edition] = true;
+
+    // Écrire le fichier
+    fs.writeFileSync(filePath, JSON.stringify(soldData, null, 2));
+
+    return res.json({ success: true, edition });
   } catch (err) {
-    console.error('Webhook error:', err);
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
   }
 }
