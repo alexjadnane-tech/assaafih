@@ -14,9 +14,9 @@ export default function handler(req, res) {
     }
   }
 
-  // Ajouter manuellement l’édition 12
-  if (!sold.includes(12)) {
-    sold.push(12);
+  // Ajouter manuellement l’édition 1
+  if (!sold.includes(1)) {
+    sold.push(1);
   }
 
   // Sauvegarder
