@@ -1,4 +1,5 @@
-{
-  "1": "https://alexandreadnane.payrexx.com/fr/pay?pid=dee0547b",
-  "2": "https://alexandreadnane.payrexx.com/fr/pay?pid=f559bd7a"
-}
+
+  [
+  {"number": 1, "url": "https://alexandreadnane.payrexx.com/fr/pay?pid=dee0547b"},
+  {"number": 2, "url": "https://alexandreadnane.payrexx.com/fr/pay?pid=f559bd7a"}
+]
