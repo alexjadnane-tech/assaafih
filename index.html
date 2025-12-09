@@ -2,76 +2,85 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Choisis ton carnet :)</title>
+<title>Choisis ton carnet</title>
 <style>
-  body { font-family: Helvetica, sans-serif; margin: 2rem; background: #fff; color: #000; text-align: center; }
-  .grid { display: grid; grid-template-columns: repeat(20, 40px); grid-gap: 4px; justify-content: center; margin-top: 20px; }
-  .edition { width:40px; height:40px; background:black; color:white; display:flex; align-items:center; justify-content:center; cursor:pointer; border:1px solid #333; transition:0.2s; }
+  body { font-family: Helvetica, sans-serif; margin: 2rem; text-align: center; }
+  .grid { display: grid; grid-template-columns: repeat(20, 40px); gap: 4px; justify-content: center; margin-top: 20px; }
+  .edition { width: 40px; height: 40px; background:black; color:white; display:flex; align-items:center; justify-content:center; cursor:pointer; border:1px solid #333; }
   .edition.sold { background:#fff; color:transparent; border:none; cursor:not-allowed; }
-  .edition.no-link { background:#555; color:#999; cursor:not-allowed; }
-  .edition:hover:not(.sold):not(.no-link) { transform:scale(1.1); }
-  #payButton { display:none; margin-top:20px; padding:12px 30px; background:#dd00ff; color:white; border:none; font-size:18px; cursor:pointer; }
 </style>
 </head>
 <body>
 
-<h1>choose your edition !</h1>
-<p>click on a square to select one…</p>
-
+<h1>Choisis ton carnet !</h1>
 <div class="grid" id="grid"></div>
-
 <div id="selectedEdition">
-  selected edition: <span id="editionNumber">None</span>
+  selected edition: <span id="editionNumber">Aucune</span>
 </div>
-
-<button id="payButton">PAY!</button>
+<button id="payStripe" style="display:none">Pay Card</button>
+<button id="payTwint" style="display:none">Pay Twint</button>
 
 <script>
+let selectedEdition = null;
 let links = [];
-let sold = [];
 
-async function loadData() {
-  const linksRes = await fetch("/links.json");
-  const soldRes  = await fetch("/sold.json");
-
-  links = await linksRes.json();
-  sold  = await soldRes.json();
+async function fetchSold() {
+  const res = await fetch('/api/sold-editions');
+  return res.ok ? (await res.json()).map(Number) : [];
 }
 
-function renderGrid() {
-  const grid = document.getElementById("grid");
-  grid.innerHTML = "";
+async function fetchLinks() {
+  const res = await fetch('/links.json');
+  links = await res.json();
+}
 
-  for (let i = 1; i <= 200; i++) {
-    const div = document.createElement("div");
-    div.className = "edition";
+async function generateGrid() {
+  const sold = await fetchSold();
+  await fetchLinks();
+
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+
+  for(let i=1;i<=200;i++){
+    const div = document.createElement('div');
+    div.classList.add('edition');
     div.textContent = i;
 
-    const link = links.find(l => l.number === i);
+    if(sold.includes(i)) div.classList.add('sold');
 
-    if (sold.includes(i)) div.classList.add("sold");
-    else if (!link) div.classList.add("no-link");
+    const linkObj = links.find(l => l.number === i);
 
-    div.onclick = () => {
-      if (div.classList.contains("sold") || div.classList.contains("no-link")) return;
+    div.addEventListener('click', () => {
+      if(div.classList.contains('sold')) return;
+      selectedEdition = i;
+      document.getElementById('editionNumber').textContent = i;
 
-      document.querySelectorAll(".edition").forEach(e => e.style.borderColor="#333");
-      div.style.borderColor = "#fff";
-
-      document.getElementById("editionNumber").textContent = i;
-      const pay = document.getElementById("payButton");
-      pay.style.display = "inline-block";
-      pay.onclick = () => window.open(link.url, "_blank");
-    };
+      if(linkObj){
+        document.getElementById('payStripe').style.display = 'inline-block';
+        document.getElementById('payTwint').style.display = 'inline-block';
+      } else {
+        document.getElementById('payStripe').style.display = 'none';
+        document.getElementById('payTwint').style.display = 'none';
+      }
+    });
 
     grid.appendChild(div);
   }
 }
 
-(async () => {
-  await loadData();
-  renderGrid();  
-})();
+document.getElementById('payStripe').addEventListener('click', () => {
+  const linkObj = links.find(l=>l.number===selectedEdition);
+  if(linkObj) window.open(linkObj.stripe,'_blank');
+});
+
+document.getElementById('payTwint').addEventListener('click', () => {
+  const linkObj = links.find(l=>l.number===selectedEdition);
+  if(linkObj) window.open(linkObj.twint,'_blank');
+});
+
+// Auto-refresh
+setInterval(generateGrid,10000);
+generateGrid();
 </script>
 
 </body>
